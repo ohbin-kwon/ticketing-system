@@ -47,6 +47,27 @@ npm run migration:run
 npm run migration:revert
 ```
 
+## Branch Strategy
+
+```
+main              ← 항상 동작하는 상태
+ └── feat/xxx     ← 기능 브랜치 (PR 머지 후 삭제)
+```
+
+- 브랜치 네이밍: `feat/user-auth`, `feat/concert-crud`, `fix/seat-lock-bug`
+- 구현 순서 단계별로 브랜치 → PR → **squash merge** → 삭제
+- `develop` 브랜치 없음 — main + feat 브랜치만 운용
+
+```bash
+git checkout -b feat/<기능명>
+# 작업 + 커밋
+git push -u origin feat/<기능명>
+gh pr create --title "feat: 기능 설명"
+# PR squash merge 후
+git checkout main && git pull
+git branch -d feat/<기능명>
+```
+
 ## Docker
 
 ```bash

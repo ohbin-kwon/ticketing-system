@@ -47,6 +47,44 @@ npm run migration:run
 npm run migration:revert
 ```
 
+## Docker
+
+```bash
+# PostgreSQL 로컬 실행
+docker run --name ticketing-pg -e POSTGRES_USER=ticketing -e POSTGRES_PASSWORD=ticketing -e POSTGRES_DB=ticketing -p 5432:5432 -d postgres:16
+
+# Redis 로컬 실행
+docker run --name ticketing-redis -p 6379:6379 -d redis:7-alpine
+```
+
+## Environment Variables
+
+`.env.example` 형태:
+```
+# Database
+DB_HOST=localhost
+DB_PORT=5432
+DB_USERNAME=ticketing
+DB_PASSWORD=ticketing
+DB_DATABASE=ticketing
+
+# Redis
+REDIS_HOST=localhost
+REDIS_PORT=6379
+
+# JWT
+JWT_SECRET=your-secret-key
+JWT_EXPIRES_IN=1h
+
+# Toss Payments
+TOSS_PAYMENTS_SECRET_KEY=test_sk_xxx
+TOSS_PAYMENTS_CLIENT_KEY=test_ck_xxx
+
+# App
+PORT=3000
+NODE_ENV=development
+```
+
 ## Architecture
 
 ### DDD 폴더 구조
@@ -177,6 +215,15 @@ CREATE INDEX idx_reservations_hold_expires ON reservations(hold_expires_at)
 - 인터페이스 prefix `I` 없음 — `ReservationRepository` (O), `IReservationRepository` (X)
 - 환경변수는 `ConfigModule` + `@nestjs/config`를 통해서만 접근 — 코드에서 `process.env` 직접 참조 금지
 
+## Test Convention
+
+- 테스트 파일 위치: 소스 파일과 동일 디렉토리에 `*.spec.ts`
+- e2e 테스트: `test/` 디렉토리에 `*.e2e-spec.ts`
+- 네이밍: `describe('클래스명')` → `it('should 동작 설명')`
+- 단위 테스트: 도메인/유스케이스 중심, 외부 의존성은 모킹
+- 통합 테스트: DB 연결 포함, 트랜잭션 롤백으로 격리
+- 각 Bounded Context별 최소 커버리지: 도메인 로직 100%, 유스케이스 80%+
+
 ## API Convention
 
 ### URL 구조
@@ -223,6 +270,20 @@ PATCH  /reservations/:id/cancel     # 상태 변경 액션
 - **Redis 장애 시 fallback** — 대기열은 Redis 의존, Redis 다운 시 Queue 컨텍스트 전체 503 반환 (DB fallback 없음)
 - **마이그레이션** — TypeORM `synchronize: false` 고정, 스키마 변경은 반드시 마이그레이션 파일로만 적용
 - **Bull Queue Job** 실패 시 최대 3회 재시도, 이후 Dead Letter Queue 이동 — `attempts: 3, backoff: { type: 'exponential', delay: 1000 }`
+
+## 구현 순서
+
+1. **프로젝트 기반** — NestJS + TypeORM + Docker PostgreSQL + 마이그레이션
+2. **User 컨텍스트** — 회원가입 / 로그인 / JWT
+3. **Concert 컨텍스트** — venues, concerts, schedules, seats CRUD
+4. **Queue 컨텍스트** — DB 기반 → Redis 전환 순서
+5. **Reservation 컨텍스트** — 낙관적 락 → 비관적 락
+6. **Payment 컨텍스트** — 토스페이먼츠 연동
+7. **성능/트래픽** — Redis 대기열, 분산 락, Bull Queue, k6
+
+각 단계 내 구현 순서: **Entity → Repository → UseCase → Controller**
+
+> **작업 원칙: 한 번에 전부 만들지 않기 — 단계별로 진행**
 
 ## 4주 구현 로드맵
 

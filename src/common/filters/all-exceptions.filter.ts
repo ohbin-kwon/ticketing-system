@@ -22,7 +22,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     let errorResponse: ApiErrorResponse;
 
     if (exception instanceof DomainException) {
-      status = HttpStatus.BAD_REQUEST;
+      status = this.resolveHttpStatus(exception.code);
       errorResponse = {
         success: false,
         error: {
@@ -60,5 +60,18 @@ export class AllExceptionsFilter implements ExceptionFilter {
     }
 
     response.status(status).json(errorResponse);
+  }
+
+  private readonly unauthorizedCodes = new Set([
+    'USER_NOT_FOUND',
+    'USER_INVALID_PASSWORD',
+    'USER_NOT_ACTIVE',
+  ]);
+
+  private resolveHttpStatus(code: string): number {
+    if (this.unauthorizedCodes.has(code)) {
+      return HttpStatus.UNAUTHORIZED;
+    }
+    return HttpStatus.BAD_REQUEST;
   }
 }

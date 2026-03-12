@@ -1,0 +1,28 @@
+# compiled output
+/dist
+/node_modules
+/build
+
+# environment
+.env
+
+# logs
+logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# coverage
+/coverage
+
+# handoff
+handoff.md
